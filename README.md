@@ -30,30 +30,44 @@ This project uses customer risk tiers in lending as a concrete, quantifiable exa
 
 ## Architecture
 
-```
-RAW.CUSTOMERS (Snowflake)          RAW.LOANS (Snowflake)
-        │                                   │
-        ▼                                   │
-stg_customers (staging view)        stg_loans (staging view)
-        │                                   │
-        ▼                                   │
-dim_customers_snapshot                      │
-  (dbt snapshot — SCD Type 2,             │
-   invalidate_hard_deletes=True)            │
-        │                                   │
-        ├──► dim_customers                  │
-        │    (current state, 1 row/customer)│
-        │                                   │
-        └──► dim_customers_history ◄────────┤
-             (full history, 1 row/version)  │
-                    │                       │
-                    └───────────────────────┤
-                                            │
-             ┌──────────────────────────────┘
-             │
-             ├──► fct_loans_type1       (naive — current tier join)
-             ├──► fct_loans_type2       (correct — point-in-time join + surrogate key)
-             └──► report_revenue_misattribution
+```mermaid
+flowchart LR
+    subgraph Source["Raw Layer — Snowflake (DBT_LENDING.RAW)"]
+        A[raw.customers]
+        B[raw.loans]
+    end
+
+    subgraph Staging["Staging Layer — Views"]
+        C[stg_customers]
+        D[stg_loans]
+    end
+
+    subgraph Snapshot["Snapshot Layer — SCD Type 2"]
+        E["dim_customers_snapshot\ninvalidate_hard_deletes=True"]
+    end
+
+    subgraph Gold["Gold Dimensions — Marts"]
+        F["dim_customers\ncurrent state only"]
+        G["dim_customers_history\nfull SCD2 history"]
+    end
+
+    subgraph Facts["Fact + Report — Marts"]
+        H["fct_loans_type1\nnaive Type 1"]
+        I["fct_loans_type2\ncorrect Type 2 + surrogate key"]
+        J[report_revenue_misattribution]
+    end
+
+    A --> C
+    B --> D
+    C --> E
+    E --> F
+    E --> G
+    F --> H
+    D --> H
+    G --> I
+    D --> I
+    H --> J
+    I --> J
 ```
 
 **Stack:** Python 3.13 · dbt-core 1.11 · dbt-snowflake · Snowflake
