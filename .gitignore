@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# dbt
+dbt_lending/target/
+dbt_lending/logs/
+dbt_lending/dbt_packages/
+dbt_lending/profiles.yml

@@ -1,0 +1,32 @@
+name: 'dbt_lending'
+version: '1.0.0'
+
+profile: 'dbt_lending'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+seeds:
+  dbt_lending:
+    +schema: seeds
+
+models:
+  dbt_lending:
+    staging:
+      +materialized: view
+      +schema: staging
+    marts:
+      +materialized: table
+      +schema: marts
+
+snapshots:
+  dbt_lending:
+    +schema: snapshots

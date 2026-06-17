@@ -1,0 +1,15 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: Raw lending data loaded from the core banking system
+    tables:
+      - name: customers
+        description: Customer records with risk tier — the column that changes over time and drives SCD Type 2
+        freshness:
+          warn_after: {count: 24, period: hour}
+          error_after: {count: 48, period: hour}
+        loaded_at_field: _fivetran_synced
+      - name: loans
+        description: Loan origination records — principal attributed to the customer's tier at origination_date

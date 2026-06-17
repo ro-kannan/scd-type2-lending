@@ -1,0 +1,100 @@
+version: 2
+
+models:
+  - name: dim_customers
+    description: >
+      Current-state customer dimension: one row per active customer, current tier only.
+      Hard-deleted customers are excluded (their snapshot rows are closed by invalidate_hard_deletes).
+      Use for operational reporting and dashboards that only need present-day attributes.
+    columns:
+      - name: customer_id
+        description: Primary key
+        tests:
+          - unique
+          - not_null
+      - name: risk_tier
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Standard', 'Premium', 'High-Risk']
+              quote: true
+
+  - name: dim_customers_history
+    description: >
+      Full SCD Type 2 customer history: one row per customer per version.
+      Join to fact tables via customer_snapshot_key (dbt_skey surrogate key) for
+      point-in-time attribute lookup. dbt_valid_to IS NULL = current version.
+    columns:
+      - name: customer_snapshot_key
+        description: Surrogate key — unique per customer per version. Use this for Power BI relationships.
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        tests:
+          - not_null
+      - name: risk_tier
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Standard', 'Premium', 'High-Risk']
+              quote: true
+
+  - name: fct_loans_type1
+    description: >
+      Loans joined to the customer's CURRENT risk tier (naive Type 1 approach).
+      Use only for comparison — this attribution is incorrect for any customer
+      whose tier has changed since loan origination.
+    columns:
+      - name: loan_id
+        description: Primary key
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        tests:
+          - not_null
+      - name: risk_tier_current
+        description: Customer's tier today — NOT the tier at origination
+        tests:
+          - accepted_values:
+              values: ['Standard', 'Premium', 'High-Risk']
+              quote: true
+
+  - name: fct_loans_type2
+    description: >
+      Loans joined to the customer's risk tier AT ORIGINATION via SCD Type 2 snapshot.
+      Point-in-time join: origination_date falls within [dbt_valid_from, dbt_valid_to).
+      This is the correct model for regulatory reporting and risk attribution.
+    columns:
+      - name: loan_id
+        description: Primary key
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        tests:
+          - not_null
+      - name: risk_tier_at_origination
+        description: Customer's tier on the day the loan was originated
+        tests:
+          - accepted_values:
+              values: ['Standard', 'Premium', 'High-Risk']
+              quote: true
+
+  - name: report_revenue_misattribution
+    description: >
+      Side-by-side comparison of total loan principal per risk tier under
+      Type 1 (current tier) vs Type 2 (tier at origination). Exposes two Type 1
+      failure modes: (1) tier misclassification — loans attributed to the wrong tier
+      when a customer's tier changed after origination; (2) deleted record impact —
+      hard-deleted customers are absent from the current dim, so their loans surface
+      as 'Deleted / Unresolved' in Type 1 with no tier attribution. Type 2 handles
+      both correctly via point-in-time snapshot joins.
+    columns:
+      - name: risk_tier
+        tests:
+          - unique
+          - accepted_values:
+              values: ['Standard', 'Premium', 'High-Risk', 'Deleted / Unresolved']
+              quote: true

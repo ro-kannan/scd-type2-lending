@@ -1,0 +1,13 @@
+dbt_lending:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: your_snowflake_account_identifier
+      user: your_snowflake_username
+      password: your_snowflake_password
+      role: ACCOUNTADMIN
+      database: DBT_LENDING
+      warehouse: COMPUTE_WH
+      schema: RAW
+      threads: 4
